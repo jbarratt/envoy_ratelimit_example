@@ -36,19 +36,16 @@ There is also a simple vegeta script in `vegeta`.
 * clone the repo
 * `git submodule init`
 * `git submodule update`
+
+
+I had to make some manual tweaks to the `ratelimit` codebase to get it to build -- which may be operator error:
+
+* `mkdir ratelimit/vendor` (the `Dockerfile` expects it to exist already)
+* add a `COPY proto proto` to the `Dockerfile` with the rest of the `COPY` statements
+
+Finally run:
+
 * `docker-compose up`. The first one will take some time as it builds everything.
 
-
-# Submodule care and feeding
-
-The submodule work is in a branch called `buildtweaks`.  (`git checkout buildtweaks`)
-
-For periodically pulling in updates
-
-* `git submodule update --remote --rebase ratelimit`
-
-When pushing changes to it make sure to
-
-* `git push --recurse-submodules=on-demand`
 
 
