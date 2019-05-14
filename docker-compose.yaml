@@ -1,0 +1,75 @@
+version: "3.7"
+services:
+
+  envoy:
+    build:
+      context: .
+      dockerfile: Dockerfile-envoy
+    volumes:
+      - ./envoy.yaml:/etc/envoy.yaml
+    networks:
+      - envoymesh
+    expose:
+      - "8001"
+      - "8010"
+    ports:
+      - "8001:8001"
+      - "8010:8010"
+
+  redis:
+    build:
+      context: .
+      dockerfile: Dockerfile-redis
+    networks:
+      envoymesh:
+        aliases:
+          - redis_server
+    expose:
+      - "6379"
+    ports:
+      - "6379:6379"
+
+  extauth:
+    build:
+      context: extauth
+    networks:
+      - envoymesh
+    expose:
+      - "4000"
+    ports:
+      - "4000:4000"
+
+  backend:
+    build:
+      context: backend
+    networks:
+      - envoymesh
+    expose:
+      - "8123"
+    ports:
+      - "8123:8123"
+
+  ratelimit:
+    build:
+      context: ratelimit
+    command: /bin/ratelimit
+    ports:
+      - 8080:8080
+      - 8081:8081
+      - 6070:6070
+    depends_on:
+      - redis
+    networks:
+      - envoymesh
+    volumes:
+      - ./ratelimit-data:/data
+    environment:
+      - USE_STATSD=false
+      - LOG_LEVEL=debug
+      - REDIS_SOCKET_TYPE=tcp
+      - REDIS_URL=redis:6379
+      - RUNTIME_ROOT=/data
+      - RUNTIME_SUBDIRECTORY=ratelimit
+
+networks:
+  envoymesh: {}

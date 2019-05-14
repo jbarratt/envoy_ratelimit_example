@@ -1,0 +1,86 @@
+admin:
+  access_log_path: /tmp/admin_access.log
+  address:
+    socket_address: { address: 0.0.0.0, port_value: 8001 }
+
+
+static_resources:
+  listeners:
+    - name: listener_0
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 8010 }
+      filter_chains:
+      - filters:
+        - name: envoy.http_connection_manager
+          typed_config:
+            "@type": type.googleapis.com/envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
+            stat_prefix: ingress_http
+            codec_type: AUTO
+            route_config:
+              name: local_route
+              virtual_hosts:
+              - name: local_service
+                domains: ["*"]
+                routes:
+                - match: { prefix: "/" }
+                  route: { cluster: backend }
+                rate_limits:
+                  - stage: 0
+                    actions:
+                      - {request_headers: {header_name: "x-ext-auth-ratelimit", descriptor_key: "ratelimitkey"}}
+            http_filters:
+            - name: envoy.ext_authz
+              config:
+                grpc_service:
+                  envoy_grpc:
+                    cluster_name: extauth
+            - name: envoy.rate_limit
+              config:
+                domain: backend
+                stage: 0
+                failure_mode_deny: false
+                rate_limit_service:
+                  grpc_service:
+                    envoy_grpc:
+                      cluster_name: rate_limit_cluster
+                    timeout: 0.25s
+            - name: envoy.router
+  clusters:
+  - name: backend
+    connect_timeout: 0.25s
+    type: STRICT_DNS
+    lb_policy: round_robin
+    load_assignment:
+      cluster_name: backend
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: backend
+                port_value: 8123
+
+  - name: extauth
+    type: STRICT_DNS
+    connect_timeout: 0.25s
+    http2_protocol_options: {}
+    load_assignment:
+      cluster_name: extauth
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: extauth
+                port_value: 4000
+
+  - name: rate_limit_cluster
+    type: strict_dns
+    connect_timeout: 0.25s
+    lb_policy: round_robin
+    http2_protocol_options: {}
+    hosts:
+    - socket_address:
+        address: ratelimit
+        port_value: 8081
+
