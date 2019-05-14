@@ -12,12 +12,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	resp = append(resp, "Oh, Hello!")
 
 	for name, headers := range r.Header {
-		name = strings.ToLower(name)
 		for _, h := range headers {
 			resp = append(resp, fmt.Sprintf("%v: %v", name, h))
 		}
 	}
-	fmt.Fprintf(w, strings.Join(resp, "\n"))
+	// fmt.Fprintf(w, strings.Join(resp, "\n"))
+	w.Write([]byte(strings.Join(resp, "\n")))
 }
 
 func main() {
