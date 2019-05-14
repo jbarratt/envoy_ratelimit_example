@@ -1,0 +1,4 @@
+[submodule "ratelimit"]
+	path = ratelimit
+	url = git@github.com:lyft/ratelimit.git
+	branch = master
