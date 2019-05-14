@@ -19,7 +19,7 @@ The call flow is
 - if the check passes, it passes it to the backend, which returns a response which includes all the headers which were passed to it
 ```
 
-The external authorizer is a tiny bit of custom code, which implements the external authorizer GRPC spec.
+The external authorizer is a tiny bit of custom code, which implements the external authorizer gRPC spec.
 
 The ratelimiter is the standard [lyft ratelimit](https://github.com/lyft/ratelimit), with the config in `ratelimit-data`.
 
