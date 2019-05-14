@@ -25,7 +25,11 @@ The ratelimiter is the standard [lyft ratelimit](https://github.com/lyft/ratelim
 
 The backend is a simple go http service.
 
-There is also a simple vegeta script in `vegeta`, if you run `make loadtest` it will try and issue a sample workload so you can verify rate limiting is working as intended.
+There is also a simple vegeta script in `vegeta`. 
+
+`make onepath` will try and issue 10rps against a single path in the mock backend. (It should get 2 rps with the ratelimiter config.)
+
+`make twopaths` will issue 10rps alternating between two paths. Since it should get 2rps per path, you should see a total of 4 rps.
 
 # Getting ready to build
 
