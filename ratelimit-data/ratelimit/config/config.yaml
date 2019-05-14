@@ -2,6 +2,8 @@
 domain: backend
 descriptors:
   - key: ratelimitkey
-    rate_limit:
-      unit: second
-      requests_per_unit: 2
+    descriptors:
+      - key: path
+        rate_limit:
+          requests_per_unit: 2
+          unit: second

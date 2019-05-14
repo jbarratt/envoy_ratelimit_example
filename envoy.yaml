@@ -28,6 +28,7 @@ static_resources:
                   - stage: 0
                     actions:
                       - {request_headers: {header_name: "x-ext-auth-ratelimit", descriptor_key: "ratelimitkey"}}
+                      - {request_headers: {header_name: ":path", descriptor_key: "path"}}
             http_filters:
             - name: envoy.ext_authz
               config:
