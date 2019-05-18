@@ -4,9 +4,11 @@ import (
 	"context"
 	"log"
 	"net"
+	"strings"
 
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	auth "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
 	"github.com/gogo/googleapis/google/rpc"
 	"google.golang.org/grpc"
 )
@@ -16,20 +18,44 @@ type AuthorizationServer struct{}
 
 // inject a header that can be used for future rate limiting
 func (a *AuthorizationServer) Check(ctx context.Context, req *auth.CheckRequest) (*auth.CheckResponse, error) {
-	return &auth.CheckResponse{
-		Status: &rpc.Status{
-			Code: int32(rpc.OK),
-		},
-		HttpResponse: &auth.CheckResponse_OkResponse{
-			OkResponse: &auth.OkHttpResponse{
-				Headers: []*core.HeaderValueOption{
-					{
-						Header: &core.HeaderValue{
-							Key:   "x-ext-auth-ratelimit",
-							Value: "magic",
+	authHeader, ok := req.Attributes.Request.Http.Headers["authorization"]
+	if ok {
+		splitToken := strings.Split(authHeader, "Bearer ")
+		token := splitToken[1]
+
+		// valid tokens have exactly 3 characters. #secure.
+		// Normally this is where you'd go check with the system that knows if it's a valid token.
+
+		if len(token) == 3 {
+			return &auth.CheckResponse{
+				Status: &rpc.Status{
+					Code: int32(rpc.OK),
+				},
+				HttpResponse: &auth.CheckResponse_OkResponse{
+					OkResponse: &auth.OkHttpResponse{
+						Headers: []*core.HeaderValueOption{
+							{
+								Header: &core.HeaderValue{
+									Key:   "x-ext-auth-ratelimit",
+									Value: "magic",
+								},
+							},
 						},
 					},
 				},
+			}, nil
+		}
+	}
+	return &auth.CheckResponse{
+		Status: &rpc.Status{
+			Code: int32(rpc.UNAUTHENTICATED),
+		},
+		HttpResponse: &auth.CheckResponse_DeniedResponse{
+			DeniedResponse: &auth.DeniedHttpResponse{
+				Status: &envoy_type.HttpStatus{
+					Code: envoy_type.StatusCode_Unauthorized,
+				},
+				Body: "Need an Authorization Header with a 3 character bearer token! #secure",
 			},
 		},
 	}, nil
