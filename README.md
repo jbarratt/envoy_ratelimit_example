@@ -11,13 +11,11 @@ The premise is to
 
 The call flow is
 
-```
 - envoy on localhost port 8010
 - checks with the external authorizer (extauth)
 - that external authorizer sets a header
 - envoy then checks with the ratelimiter, which persists it's state in redis
 - if the check passes, it passes it to the backend, which returns a response which includes all the headers which were passed to it
-```
 
 The external authorizer is a tiny bit of custom code, which implements the external authorizer gRPC spec.
 
@@ -26,11 +24,22 @@ For now, it just returns a simple header:
 ```
 Header: &core.HeaderValue{
 	Key:   "x-ext-auth-ratelimit",
-	Value: "magic",
+	Value: tokenSha,
 },
 ```
 
-In real life, this would probably be something like a user ID, or account ID, or the SHA of an API key ... whatever you want to rate limit on that you're aware of in your custom authorizer code. For this demo it's a simple static string. The important part is that it could be anything you want.
+In real life, this would probably be something like a user ID, or account ID, or the SHA of an API key ... whatever you want to rate limit on that you're aware of in your custom authorizer code. 
+
+For the demo, a Bearer token must be passed in, e.g.
+
+```
+curl -H "Authorization: Bearer foo" http://localhost:8010/foo
+```
+
+Instead of checking with an external service, the authorizer verifies that it's exactly 3 characters long. `#secure`.
+
+For the rate limiting key, a Base64'd and SHA'd version of the token is passed down. This makes it easy to compare different virtual users.
+
 
 Envoy is configured (in `envoy.yaml`) to pass whatever value is set in that header, as well as the path the request was for, to the ratelimiter service.
 
@@ -67,9 +76,6 @@ An example from the logs shows exactly how this works:
 ratelimit_1  | time="2019-05-14T18:48:16Z" level=debug msg="cache key: backend_ratelimitkey_magic_path_/b_1557859696 current: 3"
 ratelimit_1  | time="2019-05-14T18:48:16Z" level=debug msg="returning normal response"
 ```
-
-So it's easy to imagine the string `magic` being replaced with something appropriate for your production environment.
-
 
 The `backend` is a simple go http service. It prints the headers it gets to make it easy to see what headers are coming in with the request.
 
@@ -160,3 +166,25 @@ Error Set:
 ```
 
 And since the config says we should get 2 requests/second for path, then having 40% of them succeed is ... perfect. Yay.
+
+Finally, there's a go tool that uses vegeta as a library, and programatically generates load tests, making sure that each scenario works properly.
+
+
+```
+$ go run main.go
+single authed path, target 2qps
+OK! Got 0.22 which was close enough to 0.20
+        429: 78
+        200: 22
+2 authed paths, single user, target 4qps
+OK! Got 0.41 which was close enough to 0.40
+        200: 41
+        429: 59
+1 authed paths, dual user, target 4qps
+OK! Got 0.41 which was close enough to 0.40
+        429: 59
+        200: 41
+unauthed, target 0qps
+OK! Got 0.00 which was close enough to 0.00
+        401: 100
+```

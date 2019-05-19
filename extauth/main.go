@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"log"
 	"net"
 	"strings"
@@ -19,9 +21,15 @@ type AuthorizationServer struct{}
 // inject a header that can be used for future rate limiting
 func (a *AuthorizationServer) Check(ctx context.Context, req *auth.CheckRequest) (*auth.CheckResponse, error) {
 	authHeader, ok := req.Attributes.Request.Http.Headers["authorization"]
+	var splitToken []string
 	if ok {
-		splitToken := strings.Split(authHeader, "Bearer ")
+		splitToken = strings.Split(authHeader, "Bearer ")
+	}
+	if len(splitToken) == 2 {
 		token := splitToken[1]
+		sha := sha256.New()
+		sha.Write([]byte(token))
+		tokenSha := base64.StdEncoding.EncodeToString(sha.Sum(nil))
 
 		// valid tokens have exactly 3 characters. #secure.
 		// Normally this is where you'd go check with the system that knows if it's a valid token.
@@ -37,7 +45,7 @@ func (a *AuthorizationServer) Check(ctx context.Context, req *auth.CheckRequest)
 							{
 								Header: &core.HeaderValue{
 									Key:   "x-ext-auth-ratelimit",
-									Value: "magic",
+									Value: tokenSha,
 								},
 							},
 						},
