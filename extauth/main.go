@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// empty struct because we don't care what they tell us
+// empty struct because this isn't a fancy example
 type AuthorizationServer struct{}
 
 // inject a header that can be used for future rate limiting
