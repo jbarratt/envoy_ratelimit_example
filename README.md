@@ -82,8 +82,7 @@ The `backend` is a simple go http service. It prints the headers it gets to make
 # Getting ready to build
 
 * clone the repo
-* `git submodule init`
-* `git submodule update`
+* You'll also need a local copy of lyft's ratelimit. Submodules were causing some challenges, so it's easiest to `git clone git@github.com:lyft/ratelimit.git`
 
 
 I had to make some manual tweaks to the `ratelimit` codebase to get it to build -- which may be operator error:
@@ -100,91 +99,49 @@ Finally run:
 You can ensure that the full stack is working with a simple curl:
 
 ```
-$ curl -v localhost:8010
-* Rebuilt URL to: localhost:8010/
-*   Trying ::1...
+$ curl -v -H "Authorization: Bearer foo" http://localhost:8010                                                                                
+* Rebuilt URL to: http://localhost:8010/
+*   Trying 127.0.0.1...
 * TCP_NODELAY set
-* Connected to localhost (::1) port 8010 (#0)
+* Connected to localhost (127.0.0.1) port 8010 (#0)
 > GET / HTTP/1.1
 > Host: localhost:8010
-> User-Agent: curl/7.54.0
+> User-Agent: curl/7.61.1
 > Accept: */*
+> Authorization: Bearer foo
 > 
 < HTTP/1.1 200 OK
-< date: Tue, 14 May 2019 18:25:51 GMT
-< content-length: 205
-< content-type: text/plain; charset=utf-8
-< x-envoy-upstream-service-time: 1
+< date: Tue, 21 May 2019 00:23:12 GMT
+< content-length: 270
+< content-type: text/plain; charset=utf-8< x-envoy-upstream-service-time: 0
 < server: envoy
 < 
 Oh, Hello!
-Content-Length: 0
-User-Agent: curl/7.54.0
-Accept: */*
-X-Forwarded-Proto: http
-X-Request-Id: 46a043c4-2970-4a97-9c52-df220b938a01
-X-Ext-Auth-Ratelimit: magic
-* Connection #0 to host localhost left intact
+X-Request-Id: 6c03f5f4-e580-4d8f-aee1-7e62ba2c9b30
+X-Ext-Auth-Ratelimit: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
 X-Envoy-Expected-Rq-Timeout-Ms: 15000
+User-Agent: curl/7.61.1
+Accept: */*
+Authorization: Bearer fooX-Forwarded-Proto: http
+* Connection #0 to host localhost left intact
+Content-Length: 0
 ```
 
-There is also a simple vegeta script in `vegeta`. 
-(If you don't have `vegeta` [you'll want to install it](https://github.com/tsenart/vegeta). It's my favorite load testing swiss army knife.)
+There are also some Go tests available in the `vegeta` directory.
 
-`make onepath` will try and issue 10rps against a single path in the mock backend. (It should get 2 rps with the ratelimiter config.)
-
-`make twopaths` will issue 10rps alternating between two paths. Since it should get 2rps per path, you should see a total of 4 rps.
+It builds on the `vegeta` tool, as a library, and runs standard go test library to check various scenarios.
 
 ```
-$ make onepath
-echo "GET http://localhost:8010/a" | vegeta attack -rate 10 -duration=15s | tee results.bin | vegeta report
-Requests      [total, rate]            150, 10.07
-Duration      [total, attack, wait]    14.913955151s, 14.900531s, 13.424151ms
-Latencies     [mean, 50, 95, 99, max]  9.067402ms, 8.573452ms, 13.424151ms, 16.269111ms, 19.214047ms
-Bytes In      [total, mean]            6882, 45.88
-Bytes Out     [total, mean]            0, 0.00
-Success       [ratio]                  20.67%
-Status Codes  [code:count]             200:31  429:119  
-Error Set:
-429 Too Many Requests
-```
-
-So, attempting to do 10 queries per second, and getting only 20.67% success rate sounds about right.
-
-```
-$ make twopaths
-echo "GET http://localhost:8010/a\nGET http://localhost:8010/b" | vegeta attack -rate 10 -duration=15s | tee results.bin | vegeta report
-Requests      [total, rate]            150, 10.07
-Duration      [total, attack, wait]    14.90981304s, 14.900302s, 9.51104ms
-Latencies     [mean, 50, 95, 99, max]  9.409088ms, 8.732548ms, 13.591539ms, 16.279884ms, 22.797446ms
-Bytes In      [total, mean]            13320, 88.80
-Bytes Out     [total, mean]            0, 0.00
-Success       [ratio]                  40.00%
-Status Codes  [code:count]             200:60  429:90  
-Error Set:
-429 Too Many Requests
-```
-
-And since the config says we should get 2 requests/second for path, then having 40% of them succeed is ... perfect. Yay.
-
-Finally, there's a go tool that uses vegeta as a library, and programatically generates load tests, making sure that each scenario works properly.
-
-
-```
-$ go run main.go
-single authed path, target 2qps
-OK! Got 0.22 which was close enough to 0.20
-        429: 78
-        200: 22
-2 authed paths, single user, target 4qps
-OK! Got 0.41 which was close enough to 0.40
-        200: 41
-        429: 59
-1 authed paths, dual user, target 4qps
-OK! Got 0.41 which was close enough to 0.40
-        429: 59
-        200: 41
-unauthed, target 0qps
-OK! Got 0.00 which was close enough to 0.00
-        401: 100
+$ make test
+cd loadtest && go test -v=== RUN   TestEnvoyStack
+=== RUN   TestEnvoyStack/single_authed_path,_target_2qps=== RUN   TestEnvoyStack/2_authed_paths,_single_user,_target_4qps
+=== RUN   TestEnvoyStack/1_authed_paths,_dual_user,_target_4qps
+=== RUN   TestEnvoyStack/unauthed,_target_0qps
+--- PASS: TestEnvoyStack (40.01s)
+    --- PASS: TestEnvoyStack/single_authed_path,_target_2qps (10.00s)
+    --- PASS: TestEnvoyStack/2_authed_paths,_single_user,_target_4qps (10.00s)
+    --- PASS: TestEnvoyStack/1_authed_paths,_dual_user,_target_4qps (10.00s)
+    --- PASS: TestEnvoyStack/unauthed,_target_0qps (10.00s)
+PASS
+ok      _/workspace/work/envoy_ratelimit_example/vegeta/loadtest        40.013s
 ```
