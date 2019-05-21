@@ -69,6 +69,15 @@ func TestEnvoyStack(t *testing.T) {
 		},
 	}
 
+	// Same path as A, simulating different user
+	slowTarget := vegeta.Target{
+		Method: "GET",
+		URL:    "http://localhost:8010/slowpath",
+		Header: http.Header{
+			"Authorization": []string{"Bearer bar"},
+		},
+	}
+
 	// Unauthed user
 	unauthedTarget := vegeta.Target{
 		Method: "GET",
@@ -86,6 +95,7 @@ func TestEnvoyStack(t *testing.T) {
 		{"single authed path, target 2qps", 0.20, []vegeta.Target{authedTargetA}},
 		{"2 authed paths, single user, target 4qps", 0.40, []vegeta.Target{authedTargetA, authedTargetB}},
 		{"1 authed paths, dual user, target 4qps", 0.40, []vegeta.Target{authedTargetA, otherAuthTarget}},
+		{"slow path, target 1qps", 0.1, []vegeta.Target{slowTarget}},
 		{"unauthed, target 0qps", 0.0, []vegeta.Target{unauthedTarget}},
 	}
 

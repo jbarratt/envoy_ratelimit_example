@@ -22,13 +22,21 @@ static_resources:
               - name: local_service
                 domains: ["*"]
                 routes:
+                - match: { prefix: "/slowpath" }
+                  route: 
+                    cluster: backend
+                    rate_limits:
+                      - stage: 0
+                        actions:
+                          - {generic_key: {"descriptor_value": "slowpath"}}
                 - match: { prefix: "/" }
-                  route: { cluster: backend }
-                rate_limits:
-                  - stage: 0
-                    actions:
-                      - {request_headers: {header_name: "x-ext-auth-ratelimit", descriptor_key: "ratelimitkey"}}
-                      - {request_headers: {header_name: ":path", descriptor_key: "path"}}
+                  route: 
+                    cluster: backend
+                    rate_limits:
+                      - stage: 0
+                        actions:
+                          - {request_headers: {header_name: "x-ext-auth-ratelimit", descriptor_key: "ratelimitkey"}}
+                          - {request_headers: {header_name: ":path", descriptor_key: "path"}}
             http_filters:
             - name: envoy.ext_authz
               config:

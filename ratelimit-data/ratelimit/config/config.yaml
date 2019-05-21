@@ -1,6 +1,11 @@
 ---
 domain: backend
 descriptors:
+  - key: generic_key
+    value: slowpath
+    rate_limit:
+      requests_per_unit: 1
+      unit: second
   - key: ratelimitkey
     descriptors:
       - key: path
