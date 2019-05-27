@@ -18,6 +18,7 @@ static_resources:
             codec_type: AUTO
             route_config:
               name: local_route
+              request_headers_to_remove: ["Authorization"]
               virtual_hosts:
               - name: local_service
                 domains: ["*"]
