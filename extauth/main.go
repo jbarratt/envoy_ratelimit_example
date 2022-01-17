@@ -8,10 +8,11 @@ import (
 	"net"
 	"strings"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	auth "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
-	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
-	"github.com/gogo/googleapis/google/rpc"
+	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	auth "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type/v3"
+	"google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/grpc"
 )
 
@@ -25,6 +26,7 @@ func (a *AuthorizationServer) Check(ctx context.Context, req *auth.CheckRequest)
 	if ok {
 		splitToken = strings.Split(authHeader, "Bearer ")
 	}
+	log.Printf("checking bearer token")
 	if len(splitToken) == 2 {
 		token := splitToken[1]
 		sha := sha256.New()
@@ -35,9 +37,10 @@ func (a *AuthorizationServer) Check(ctx context.Context, req *auth.CheckRequest)
 		// Normally this is where you'd go check with the system that knows if it's a valid token.
 
 		if len(token) == 3 {
+			log.Printf("bearer token is good")
 			return &auth.CheckResponse{
-				Status: &rpc.Status{
-					Code: int32(rpc.OK),
+				Status: &status.Status{
+					Code: int32(code.Code_OK),
 				},
 				HttpResponse: &auth.CheckResponse_OkResponse{
 					OkResponse: &auth.OkHttpResponse{
@@ -54,9 +57,10 @@ func (a *AuthorizationServer) Check(ctx context.Context, req *auth.CheckRequest)
 			}, nil
 		}
 	}
+	log.Printf("bearer token is not good")
 	return &auth.CheckResponse{
-		Status: &rpc.Status{
-			Code: int32(rpc.UNAUTHENTICATED),
+		Status: &status.Status{
+			Code: int32(code.Code_UNAUTHENTICATED),
 		},
 		HttpResponse: &auth.CheckResponse_DeniedResponse{
 			DeniedResponse: &auth.DeniedHttpResponse{

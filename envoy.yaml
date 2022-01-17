@@ -13,7 +13,7 @@ static_resources:
       - filters:
         - name: envoy.http_connection_manager
           typed_config:
-            "@type": type.googleapis.com/envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
+            "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
             stat_prefix: ingress_http
             codec_type: AUTO
             route_config:
@@ -39,22 +39,28 @@ static_resources:
                           - {request_headers: {header_name: "x-ext-auth-ratelimit", descriptor_key: "ratelimitkey"}}
                           - {request_headers: {header_name: ":path", descriptor_key: "path"}}
             http_filters:
-            - name: envoy.ext_authz
-              config:
+            - name: extensions.filters.http.ext_authz.v3.ExtAuthz
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                transport_api_version: V3
                 grpc_service:
                   envoy_grpc:
                     cluster_name: extauth
-            - name: envoy.rate_limit
-              config:
+                  timeout: 0.5s
+            - name: envoy.filters.http.ratelimit
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.http.ratelimit.v3.RateLimit
                 domain: backend
                 stage: 0
                 failure_mode_deny: false
                 rate_limit_service:
+                  transport_api_version: V3
                   grpc_service:
                     envoy_grpc:
                       cluster_name: rate_limit_cluster
                     timeout: 0.25s
-            - name: envoy.router
+            - name: envoy.filters.http.router
+              typed_config: {}
   clusters:
   - name: backend
     connect_timeout: 0.25s
@@ -89,8 +95,12 @@ static_resources:
     connect_timeout: 0.25s
     lb_policy: round_robin
     http2_protocol_options: {}
-    hosts:
-    - socket_address:
-        address: ratelimit
-        port_value: 8081
-
+    load_assignment:
+      cluster_name: ratelimit_gloo-system
+      endpoints:
+        - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: ratelimit
+                    port_value: 8081

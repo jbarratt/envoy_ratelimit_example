@@ -85,10 +85,9 @@ The `backend` is a simple go http service. It prints the headers it gets to make
 * You'll also need a local copy of lyft's ratelimit. Submodules were causing some challenges, so it's easiest to `git clone git@github.com:lyft/ratelimit.git`
 
 
-I had to make some manual tweaks to the `ratelimit` codebase to get it to build -- which may be operator error:
+I had to make a tweak to the `ratelimit` codebase to get it to build -- which may be operator error:
 
 * `mkdir ratelimit/vendor` (the `Dockerfile` expects it to exist already)
-* add a `COPY proto proto` to the `Dockerfile` with the rest of the `COPY` statements
 
 Finally run:
 
